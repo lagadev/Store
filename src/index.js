@@ -20,6 +20,10 @@ function html(body) {
   });
 }
 
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 // ---------- Telegram initData verification ----------
 async function hmacSha256(keyBytes, message) {
   const key = await crypto.subtle.importKey(
@@ -79,7 +83,7 @@ async function getIdentity(request, env) {
   let user = await verifyInitData(initData, env.BOT_TOKEN);
 
   if (!user) {
-    // Dev/testing fallback: allow ?tid=&username=&first_name= on GET requests
+    // Dev/testing fallback: allow ?tid=&username=&first_name= on requests
     const tid = url.searchParams.get("tid") || request.headers.get("X-Tg-Id");
     if (tid) {
       user = {
@@ -93,19 +97,32 @@ async function getIdentity(request, env) {
   return user;
 }
 
+// ---------- settings helpers ----------
+async function getSettings(db) {
+  const { results } = await db.prepare("SELECT key, value FROM settings").all();
+  const s = {};
+  for (const row of results) s[row.key] = row.value;
+  return {
+    coins_per_ad: Number(s.coins_per_ad ?? 50),
+    daily_ad_limit: Number(s.daily_ad_limit ?? 10),
+    coins_per_refer: Number(s.coins_per_refer ?? 20),
+  };
+}
+
+async function setSetting(db, key, value) {
+  await db
+    .prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?")
+    .bind(key, String(value), String(value))
+    .run();
+}
+
 async function getOrCreateUser(db, tgUser, referredByTgId) {
-  let row = await db
-    .prepare("SELECT * FROM users WHERE telegram_id = ?")
-    .bind(tgUser.id)
-    .first();
+  let row = await db.prepare("SELECT * FROM users WHERE telegram_id = ?").bind(tgUser.id).first();
 
   if (!row) {
     let referrerRowId = null;
     if (referredByTgId && Number(referredByTgId) !== Number(tgUser.id)) {
-      const ref = await db
-        .prepare("SELECT id FROM users WHERE telegram_id = ?")
-        .bind(referredByTgId)
-        .first();
+      const ref = await db.prepare("SELECT id FROM users WHERE telegram_id = ?").bind(referredByTgId).first();
       if (ref) referrerRowId = ref.id;
     }
 
@@ -124,20 +141,32 @@ async function getOrCreateUser(db, tgUser, referredByTgId) {
       .run();
 
     if (referrerRowId) {
+      const settings = await getSettings(db);
       await db
-        .prepare("UPDATE users SET referral_count = referral_count + 1, balance = balance + 20 WHERE id = ?")
-        .bind(referrerRowId)
+        .prepare("UPDATE users SET referral_count = referral_count + 1, balance = balance + ? WHERE id = ?")
+        .bind(settings.coins_per_refer, referrerRowId)
         .run();
     }
 
     row = await db.prepare("SELECT * FROM users WHERE telegram_id = ?").bind(tgUser.id).first();
   } else {
-    // keep profile fields fresh
     await db
       .prepare("UPDATE users SET username = ?, first_name = ?, photo_url = ? WHERE telegram_id = ?")
       .bind(tgUser.username || row.username, tgUser.first_name || row.first_name, tgUser.photo_url || row.photo_url, tgUser.id)
       .run();
+    row = await db.prepare("SELECT * FROM users WHERE telegram_id = ?").bind(tgUser.id).first();
   }
+
+  // reset daily ad counter if the date rolled over
+  if (row.last_ad_date !== todayStr()) {
+    await db
+      .prepare("UPDATE users SET ads_watched_today = 0, last_ad_date = ? WHERE id = ?")
+      .bind(todayStr(), row.id)
+      .run();
+    row.ads_watched_today = 0;
+    row.last_ad_date = todayStr();
+  }
+
   return row;
 }
 
@@ -155,12 +184,8 @@ export default {
     }
 
     // ---------- static pages ----------
-    if (pathname === "/" || pathname === "/index.html") {
-      return html(INDEX_HTML);
-    }
-    if (pathname === "/admin") {
-      return html(ADMIN_HTML);
-    }
+    if (pathname === "/" || pathname === "/index.html") return html(INDEX_HTML);
+    if (pathname === "/admin") return html(ADMIN_HTML);
 
     if (!pathname.startsWith("/api/")) {
       return new Response("Not found", { status: 404 });
@@ -174,11 +199,12 @@ export default {
         const body = await request.json().catch(() => ({}));
         const initData = request.headers.get("X-Init-Data") || body.initData || "";
         let user = await verifyInitData(initData, env.BOT_TOKEN);
-        if (!user && body.devUser) user = body.devUser; // dev fallback
+        if (!user && body.devUser) user = body.devUser;
         if (!user) return json({ error: "unauthorized" }, 401);
 
         const row = await getOrCreateUser(db, user, body.startParam);
-        return json({ user: row, isAdmin: isAdmin(env, user.id) });
+        const settings = await getSettings(db);
+        return json({ user: row, isAdmin: isAdmin(env, user.id), settings });
       }
 
       // ---------- /api/me ----------
@@ -186,7 +212,35 @@ export default {
         const user = await getIdentity(request, env);
         if (!user) return json({ error: "unauthorized" }, 401);
         const row = await getOrCreateUser(db, user, url.searchParams.get("ref"));
-        return json({ user: row, isAdmin: isAdmin(env, user.id) });
+        const settings = await getSettings(db);
+        return json({ user: row, isAdmin: isAdmin(env, user.id), settings });
+      }
+
+      // ---------- /api/settings (public read) ----------
+      if (pathname === "/api/settings" && request.method === "GET") {
+        return json(await getSettings(db));
+      }
+
+      // ---------- /api/earn/watch-ad ----------
+      if (pathname === "/api/earn/watch-ad" && request.method === "POST") {
+        const user = await getIdentity(request, env);
+        if (!user) return json({ error: "unauthorized" }, 401);
+        const row = await getOrCreateUser(db, user);
+        const settings = await getSettings(db);
+
+        if (row.ads_watched_today >= settings.daily_ad_limit) {
+          return json({ error: "daily_limit_reached", limit: settings.daily_ad_limit }, 400);
+        }
+
+        await db
+          .prepare(
+            "UPDATE users SET balance = balance + ?, ads_watched_today = ads_watched_today + 1, last_ad_date = ? WHERE id = ?"
+          )
+          .bind(settings.coins_per_ad, todayStr(), row.id)
+          .run();
+
+        const updated = await db.prepare("SELECT * FROM users WHERE id = ?").bind(row.id).first();
+        return json({ user: updated, coins_earned: settings.coins_per_ad, settings });
       }
 
       // ---------- /api/bots (list) ----------
@@ -205,20 +259,22 @@ export default {
         if (!bot) return json({ error: "not found" }, 404);
 
         const user = await getIdentity(request, env);
-        let progress = { ads_watched: 0, unlocked: 0 };
+        let progress = { unlocked: 0 };
+        let balance = 0;
         if (user) {
           const row = await getOrCreateUser(db, user);
+          balance = row.balance;
           const p = await db
             .prepare("SELECT * FROM user_bot_progress WHERE user_id = ? AND bot_id = ?")
             .bind(row.id, botId)
             .first();
           if (p) progress = p;
         }
-        return json({ bot, progress });
+        return json({ bot, progress, balance });
       }
 
-      // ---------- /api/bots/:id/watch-ad ----------
-      m = pathname.match(/^\/api\/bots\/(\d+)\/watch-ad$/);
+      // ---------- /api/bots/:id/unlock (spend coins) ----------
+      m = pathname.match(/^\/api\/bots\/(\d+)\/unlock$/);
       if (m && request.method === "POST") {
         const botId = Number(m[1]);
         const user = await getIdentity(request, env);
@@ -226,57 +282,31 @@ export default {
         const row = await getOrCreateUser(db, user);
         const bot = await db.prepare("SELECT * FROM bots WHERE id = ?").bind(botId).first();
         if (!bot) return json({ error: "not found" }, 404);
+
+        const existing = await db
+          .prepare("SELECT * FROM user_bot_progress WHERE user_id = ? AND bot_id = ?")
+          .bind(row.id, botId)
+          .first();
+
+        if (existing && existing.unlocked) {
+          return json({ redirect: bot.redirect_link, already: true });
+        }
+
+        if (row.balance < bot.price_coins) {
+          return json({ error: "insufficient_coins", need: bot.price_coins - row.balance }, 400);
+        }
+
+        await db.prepare("UPDATE users SET balance = balance - ?, bots_unlocked = bots_unlocked + 1 WHERE id = ?")
+          .bind(bot.price_coins, row.id)
+          .run();
 
         await db
           .prepare(
-            `INSERT INTO user_bot_progress (user_id, bot_id, ads_watched)
-             VALUES (?, ?, 1)
-             ON CONFLICT(user_id, bot_id) DO UPDATE SET
-               ads_watched = MIN(ads_watched + 1, ?)`
+            `INSERT INTO user_bot_progress (user_id, bot_id, unlocked, unlocked_at) VALUES (?, ?, 1, datetime('now'))
+             ON CONFLICT(user_id, bot_id) DO UPDATE SET unlocked = 1, unlocked_at = datetime('now')`
           )
-          .bind(row.id, botId, bot.ads_required)
+          .bind(row.id, botId)
           .run();
-
-        const progress = await db
-          .prepare("SELECT * FROM user_bot_progress WHERE user_id = ? AND bot_id = ?")
-          .bind(row.id, botId)
-          .first();
-        return json({ progress, ads_required: bot.ads_required });
-      }
-
-      // ---------- /api/bots/:id/claim ----------
-      m = pathname.match(/^\/api\/bots\/(\d+)\/claim$/);
-      if (m && request.method === "POST") {
-        const botId = Number(m[1]);
-        const user = await getIdentity(request, env);
-        if (!user) return json({ error: "unauthorized" }, 401);
-        const row = await getOrCreateUser(db, user);
-        const bot = await db.prepare("SELECT * FROM bots WHERE id = ?").bind(botId).first();
-        if (!bot) return json({ error: "not found" }, 404);
-
-        const progress = await db
-          .prepare("SELECT * FROM user_bot_progress WHERE user_id = ? AND bot_id = ?")
-          .bind(row.id, botId)
-          .first();
-
-        if (!progress || progress.ads_watched < bot.ads_required) {
-          return json({ error: "ads not completed" }, 400);
-        }
-
-        if (!progress.unlocked) {
-          await db
-            .prepare(
-              "UPDATE user_bot_progress SET unlocked = 1, unlocked_at = datetime('now') WHERE id = ?"
-            )
-            .bind(progress.id)
-            .run();
-          await db
-            .prepare(
-              "UPDATE users SET bots_unlocked = bots_unlocked + 1, balance = balance + ? WHERE id = ?"
-            )
-            .bind(bot.reward_coins, row.id)
-            .run();
-        }
 
         return json({ redirect: bot.redirect_link });
       }
@@ -302,8 +332,8 @@ export default {
         const b = await request.json();
         await db
           .prepare(
-            `INSERT INTO bots (title, description, thumbnail_url, tutorial_url, redirect_link, ads_required, reward_coins, category, is_active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            `INSERT INTO bots (title, description, thumbnail_url, tutorial_url, redirect_link, price_coins, category, is_active)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .bind(
             b.title || "",
@@ -311,8 +341,7 @@ export default {
             b.thumbnail_url || "",
             b.tutorial_url || "",
             b.redirect_link || "",
-            Number(b.ads_required) || 9,
-            Number(b.reward_coins) || 0,
+            Number(b.price_coins) || 0,
             b.category || "New",
             b.is_active === false ? 0 : 1
           )
@@ -326,7 +355,7 @@ export default {
         await db
           .prepare(
             `UPDATE bots SET title=?, description=?, thumbnail_url=?, tutorial_url=?, redirect_link=?,
-             ads_required=?, reward_coins=?, category=?, is_active=? WHERE id=?`
+             price_coins=?, category=?, is_active=? WHERE id=?`
           )
           .bind(
             b.title || "",
@@ -334,8 +363,7 @@ export default {
             b.thumbnail_url || "",
             b.tutorial_url || "",
             b.redirect_link || "",
-            Number(b.ads_required) || 9,
-            Number(b.reward_coins) || 0,
+            Number(b.price_coins) || 0,
             b.category || "New",
             b.is_active === false ? 0 : 1,
             Number(m[1])
@@ -350,31 +378,35 @@ export default {
       }
 
       if (pathname === "/api/admin/users" && request.method === "GET") {
-        const { results } = await db
-          .prepare("SELECT * FROM users ORDER BY id DESC LIMIT 500")
-          .all();
+        const { results } = await db.prepare("SELECT * FROM users ORDER BY id DESC LIMIT 500").all();
         return json({ users: results });
       }
 
       m = pathname.match(/^\/api\/admin\/users\/(\d+)\/ban$/);
       if (m && request.method === "POST") {
         const b = await request.json().catch(() => ({}));
-        await db
-          .prepare("UPDATE users SET is_banned = ? WHERE id = ?")
-          .bind(b.banned ? 1 : 0, Number(m[1]))
-          .run();
+        await db.prepare("UPDATE users SET is_banned = ? WHERE id = ?").bind(b.banned ? 1 : 0, Number(m[1])).run();
         return json({ ok: true });
+      }
+
+      if (pathname === "/api/admin/settings" && request.method === "GET") {
+        return json(await getSettings(db));
+      }
+
+      if (pathname === "/api/admin/settings" && request.method === "PUT") {
+        const b = await request.json();
+        if (b.coins_per_ad != null) await setSetting(db, "coins_per_ad", Math.max(0, Number(b.coins_per_ad) || 0));
+        if (b.daily_ad_limit != null) await setSetting(db, "daily_ad_limit", Math.max(0, Number(b.daily_ad_limit) || 0));
+        if (b.coins_per_refer != null) await setSetting(db, "coins_per_refer", Math.max(0, Number(b.coins_per_refer) || 0));
+        return json(await getSettings(db));
       }
 
       if (pathname === "/api/admin/stats" && request.method === "GET") {
         const usersCount = await db.prepare("SELECT COUNT(*) c FROM users").first();
         const botsCount = await db.prepare("SELECT COUNT(*) c FROM bots").first();
         const unlocks = await db.prepare("SELECT COUNT(*) c FROM user_bot_progress WHERE unlocked = 1").first();
-        return json({
-          users: usersCount.c,
-          bots: botsCount.c,
-          unlocks: unlocks.c,
-        });
+        const coinsIssued = await db.prepare("SELECT COALESCE(SUM(balance),0) c FROM users").first();
+        return json({ users: usersCount.c, bots: botsCount.c, unlocks: unlocks.c, coinsInCirculation: coinsIssued.c });
       }
 
       return json({ error: "not found" }, 404);
