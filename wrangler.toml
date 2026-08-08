@@ -1,0 +1,16 @@
+name = "telebot-store"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "telebot_store_db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[vars]
+# Your personal Telegram numeric ID — this account gets automatic admin access.
+ADMIN_ID = "6040791692"
+# Optional: paste your BotFather token here to enable real Telegram initData
+# signature verification. Leave blank while testing to skip verification.
+BOT_TOKEN = "8666069596:AAEI9hbZURbcRW6_OetMdpyt_bLokC1jYJ0"
+
