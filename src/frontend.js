@@ -1,4 +1,4 @@
-hereexport const INDEX_HTML = `<!DOCTYPE html>
+export const INDEX_HTML = `<!DOCTYPE html>
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
