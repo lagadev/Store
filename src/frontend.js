@@ -1,38 +1,34 @@
-export const INDEX_HTML = `<!DOCTYPE html>
+hereexport const INDEX_HTML = `<!DOCTYPE html>
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Bot Store</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<!-- Monetag rewarded interstitial SDK — replace data-zone if your zone id differs -->
+<!-- Monetag rewarded interstitial SDK — call site left exactly as provided -->
 <script src="//libtl.com/sdk.js" data-zone="11533496" data-sdk="show_11533496"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#EEEBFC;
-  --bg2:#E2DDFA;
-  --card:#ffffff;
-  --purple:#6C5CE7;
-  --purple-2:#8A7BFF;
-  --purple-dark:#5A4BD1;
-  --green:#3FBF83;
-  --green-2:#63D69E;
-  --blue:#4A9DF8;
-  --amber:#FFB74A;
-  --ink:#221B3F;
-  --sub:#918AAE;
-  --line:#EFEBFB;
-  --radius:24px;
-  --shadow:0 10px 26px rgba(90,70,180,.10);
-  --shadow-sm:0 6px 16px rgba(90,70,180,.08);
+  --bg:#EEEBFC;--bg2:#E2DDFA;--card:#ffffff;
+  --purple:#6C5CE7;--purple-2:#8A7BFF;--purple-dark:#5A4BD1;
+  --green:#3FBF83;--green-2:#63D69E;--blue:#4A9DF8;--amber:#FFB74A;
+  --ink:#221B3F;--sub:#918AAE;--line:#EFEBFB;--radius:24px;
+  --shadow:0 10px 26px rgba(90,70,180,.10);--shadow-sm:0 6px 16px rgba(90,70,180,.08);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;font-family:'Inter','Noto Sans Bengali',sans-serif;background:var(--bg);color:var(--ink);}
 .font-display{font-family:'Baloo 2','Noto Sans Bengali',sans-serif;}
 #app{max-width:480px;margin:0 auto;min-height:100vh;background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);padding-bottom:100px;position:relative;}
 svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block;}
+
+/* ---------- gate screen ---------- */
+#gate{max-width:480px;margin:0 auto;min-height:100vh;background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 26px;text-align:center;}
+#gate .badge{width:82px;height:82px;border-radius:26px;background:linear-gradient(150deg,var(--purple-2),var(--purple));display:flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:var(--shadow);}
+#gate h1{font-family:'Baloo 2';font-size:21px;margin:0 0 10px;}
+#gate p{font-size:13.5px;color:var(--sub);line-height:1.6;margin:0 0 26px;max-width:320px;}
+#gate .btn-primary,#gate .btn-secondary{max-width:280px;}
 
 /* ---------- top bar ---------- */
 .topbar{display:flex;align-items:center;gap:10px;padding:20px 18px 6px;}
@@ -56,7 +52,7 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
 .stat-card .label{font-size:11.5px;opacity:.92;font-weight:700;}
 .stat-card .value{font-family:'Baloo 2';font-size:23px;font-weight:800;margin-top:2px;}
 
-/* ---------- promo banner (replaces recommended list) ---------- */
+/* ---------- promo banner ---------- */
 .promo{margin:22px 18px 0;border-radius:var(--radius);padding:20px;background:linear-gradient(120deg,#2E2657 0%,#463A87 55%,var(--purple) 100%);color:#fff;position:relative;overflow:hidden;box-shadow:var(--shadow);}
 .promo .dot{position:absolute;border-radius:50%;background:rgba(255,255,255,.08);}
 .promo .dot.d1{width:140px;height:140px;right:-40px;top:-50px;}
@@ -66,9 +62,9 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
 .promo p{font-size:12.5px;opacity:.85;margin:0 0 16px;position:relative;line-height:1.5;}
 .promo button{position:relative;background:#fff;color:var(--purple-dark);border:none;padding:11px 18px;border-radius:14px;font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px;}
 
-/* ---------- bot list / store cards ---------- */
+/* ---------- store cards ---------- */
 .store-grid{padding:14px 18px 4px;display:flex;flex-direction:column;gap:16px;}
-.store-card{background:#fff;border-radius:22px;overflow:hidden;box-shadow:var(--shadow-sm);transition:transform .15s ease;}
+.store-card{background:#fff;border-radius:22px;overflow:hidden;box-shadow:var(--shadow-sm);}
 .store-card .thumb-wrap{position:relative;}
 .store-card .thumb{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#eee;}
 .price-tag{position:absolute;top:10px;right:10px;background:rgba(34,27,63,.78);backdrop-filter:blur(3px);color:#fff;font-size:11.5px;font-weight:800;padding:6px 11px;border-radius:12px;display:flex;align-items:center;gap:5px;}
@@ -91,7 +87,7 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
 .sheet-handle{width:40px;height:4px;background:#E5E1F7;border-radius:4px;margin:0 auto 14px;}
 .sheet .thumb{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:18px;background:#eee;margin-bottom:14px;}
 .sheet h2{font-family:'Baloo 2';font-size:19px;margin:0 0 8px;}
-.sheet p.desc{font-size:13.5px;color:#5B5480;line-height:1.6;margin:0 0 16px;}
+.sheet p.desc{font-size:13.5px;color:#5B5480;line-height:1.6;margin:0 0 16px;white-space:pre-wrap;word-wrap:break-word;}
 .price-row{display:flex;align-items:center;justify-content:space-between;background:#F5F3FF;border-radius:16px;padding:14px 16px;margin-bottom:14px;}
 .price-row .p-label{font-size:11.5px;color:var(--sub);font-weight:700;}
 .price-row .p-val{font-family:'Baloo 2';font-size:19px;font-weight:800;color:var(--purple-dark);display:flex;align-items:center;gap:6px;}
@@ -142,13 +138,20 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
 .row-link .ic-badge{width:34px;height:34px;border-radius:11px;background:#F5F3FF;color:var(--purple);display:flex;align-items:center;justify-content:center;}
 .row-link .arrow{color:#C9C4E6;}
 .empty{text-align:center;color:var(--sub);font-size:13px;padding:34px 10px;}
-.toast{position:fixed;bottom:112px;left:50%;transform:translateX(-50%);background:#221B3F;color:#fff;padding:11px 20px;border-radius:14px;font-size:12.5px;z-index:80;opacity:0;pointer-events:none;transition:opacity .25s;font-weight:600;}
+.toast{position:fixed;bottom:112px;left:50%;transform:translateX(-50%);background:#221B3F;color:#fff;padding:11px 20px;border-radius:14px;font-size:12.5px;z-index:80;opacity:0;pointer-events:none;transition:opacity .25s;font-weight:600;max-width:88%;text-align:center;}
 .toast.show{opacity:1;}
+
+@media (max-width:360px){
+  .stats-row, .earn-stats{gap:10px;}
+  .stat-card{padding:14px 12px;min-height:104px;}
+  .earn-hero{padding:22px 16px;}
+}
 </style>
 </head>
 <body>
-<div id="app">
+<div id="gate" style="display:none;"></div>
 
+<div id="app" style="display:none;">
   <div id="tab-home"></div>
   <div id="tab-store" style="display:none;"></div>
   <div id="tab-earn" style="display:none;"></div>
@@ -184,7 +187,9 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     support: '<svg class="ic" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 3 6.2L4 19l.9-3.1A7.96 7.96 0 0 1 4 12Z"/></svg>',
     tag: '<svg class="ic" style="width:15px;height:15px;" viewBox="0 0 24 24"><path d="M3 12.5 12 3.5h7.5v7.5L10.5 21 3 12.5Z"/><circle cx="15.5" cy="8.5" r="1.4" fill="currentColor" stroke="none"/></svg>',
     link: '<svg class="ic" style="width:16px;height:16px;" viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9.5"/><path d="M11 7l1-1a3.2 3.2 0 0 1 4.5 4.5l-1.2 1.2"/><path d="M13 17l-1 1a3.2 3.2 0 0 1-4.5-4.5l1.2-1.2"/></svg>',
-    share: '<svg class="ic" style="width:16px;height:16px;" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="17" cy="18" r="2.3"/><path d="m8 10.8 7-3.6M8 13.2l7 3.6"/></svg>'
+    share: '<svg class="ic" style="width:16px;height:16px;" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="17" cy="18" r="2.3"/><path d="m8 10.8 7-3.6M8 13.2l7 3.6"/></svg>',
+    lock: '<svg class="ic" viewBox="0 0 24 24" style="width:34px;height:34px;color:#fff;"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>',
+    refresh: '<svg class="ic" style="width:16px;height:16px;" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15.5"/><path d="M4 20v-4.5h4.5"/></svg>'
   };
 
   var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -196,15 +201,13 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     username: qs.get('username') || 'demo_user',
     first_name: qs.get('first_name') || 'Demo'
   };
-  var startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ? tg.initDataUnsafe.start_param : qs.get('startapp');
-  var refFromStart = null;
-  if (startParam && startParam.indexOf('ref_') === 0) refFromStart = startParam.replace('ref_','');
-
   var initDataHeader = (tg && tg.initData) ? tg.initData : '';
-  var BOT_USERNAME = 'YourBotUsername'; // TODO: set your bot's username
-  var APP_NAME = 'store';               // TODO: set your Mini App short name
 
-  var state = { user:null, isAdmin:false, bots:[], settings:{coins_per_ad:50, daily_ad_limit:10, coins_per_refer:20}, activeTab:'home', currentBot:null };
+  var state = {
+    user:null, isAdmin:false, bots:[],
+    settings:{ coins_per_ad:50, daily_ad_limit:10, coins_per_refer:20, min_ad_seconds:7, bot_username:'', contact_support_url:'', tutorial_video_url:'' },
+    activeTab:'home', currentBot:null
+  };
 
   function api(path, opts){
     opts = opts || {};
@@ -219,13 +222,37 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     var t = document.getElementById('toast');
     t.textContent = msg;
     t.classList.add('show');
-    setTimeout(function(){ t.classList.remove('show'); }, 1900);
+    setTimeout(function(){ t.classList.remove('show'); }, 2200);
   }
 
   function esc(s){
     return (s==null?'':String(s)).replace(/[&<>"']/g, function(c){
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
     });
+  }
+
+  // ---------- gate screen (forces /start) ----------
+  function renderGate(){
+    document.getElementById('app').style.display = 'none';
+    var gate = document.getElementById('gate');
+    gate.style.display = 'flex';
+    var botUser = state.settings.bot_username;
+    var html = '';
+    html += '<div class="badge">' + ICONS.lock + '</div>';
+    html += '<h1>আগে বট /start করুন</h1>';
+    html += '<p>এই মিনি অ্যাপ ব্যবহার করতে হলে প্রথমে আমাদের বটে গিয়ে <b>/start</b> চাপতে হবে। শুরু করার পর ফিরে এসে নিচের বাটনে চাপ দিন।</p>';
+    if (botUser){
+      html += '<button class="btn-primary" id="openBotBtn" style="margin-bottom:12px;">' + ICONS.play.replace('class="ic"','class="ic" style="width:16px;height:16px;"') + ' Open Bot &amp; /start</button>';
+    }
+    html += '<button class="btn-secondary" id="recheckBtn">' + ICONS.refresh + ' আমি /start করেছি — Refresh</button>';
+    gate.innerHTML = html;
+
+    var openBtn = document.getElementById('openBotBtn');
+    if (openBtn) openBtn.onclick = function(){
+      var url = 'https://t.me/' + botUser + '?start=app';
+      if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+    };
+    document.getElementById('recheckBtn').onclick = function(){ loadUser(); };
   }
 
   // ---------- nav icons ----------
@@ -384,7 +411,7 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     html += '<div class="earn-hero"><div class="dot e1"></div><div class="dot e2"></div>';
     html += '  <div class="play-wrap">' + ICONS.play.replace('class="ic"','class="ic" style="width:28px;height:28px;"') + '</div>';
     html += '  <h2>Watch &amp; Earn</h2>';
-    html += '  <p>প্রতিটি বিজ্ঞাপনে +' + s.coins_per_ad + ' কয়েন</p>';
+    html += '  <p>প্রতিটি বিজ্ঞাপনে +' + s.coins_per_ad + ' কয়েন (কমপক্ষে ' + s.min_ad_seconds + ' সেকেন্ড দেখতে হবে)</p>';
     html += '</div>';
 
     html += '<div class="earn-stats">';
@@ -400,7 +427,7 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
       html += '<button class="watch-btn" disabled>' + ICONS.check.replace('class="ic"','class="ic" style="width:18px;height:18px;"') + ' Daily limit reached — come back tomorrow</button>';
     }
     html += '</div>';
-    html += '<div class="earn-note">প্রতিদিন সর্বোচ্চ ' + s.daily_ad_limit + ' টি বিজ্ঞাপন দেখে কয়েন আয় করা যাবে। রাত ১২টায় (UTC) লিমিট রিসেট হয়।</div>';
+    html += '<div class="earn-note">প্রতিদিন সর্বোচ্চ ' + s.daily_ad_limit + ' টি বিজ্ঞাপন দেখে কয়েন আয় করা যাবে। সম্পূর্ণ বিজ্ঞাপন (কমপক্ষে ' + s.min_ad_seconds + ' সেকেন্ড) না দেখলে কয়েন যোগ হবে না।</div>';
 
     box.innerHTML = html;
     var btn = document.getElementById('watchAdBtn');
@@ -410,10 +437,19 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
   function watchAd(){
     var btn = document.getElementById('watchAdBtn');
     if (btn){ btn.disabled = true; btn.textContent = 'Loading ad…'; }
+    var startTs = Date.now();
 
-    function creditCoins(){
-      api('/api/earn/watch-ad', { method:'POST' }).then(function(res){
+    function afterAd(){
+      var elapsed = Date.now() - startTs;
+      var minMs = (state.settings.min_ad_seconds || 7) * 1000;
+      if (elapsed < minMs){
+        toast('সম্পূর্ণ বিজ্ঞাপন দেখুন (কমপক্ষে ' + state.settings.min_ad_seconds + 's)');
+        renderEarn();
+        return;
+      }
+      api('/api/earn/watch-ad', { method:'POST', body: JSON.stringify({ duration_ms: elapsed }) }).then(function(res){
         if (res.error === 'daily_limit_reached'){ toast('Daily limit reached'); loadUser(); return; }
+        if (res.error === 'ad_too_short'){ toast('বিজ্ঞাপন অসম্পূর্ণ'); renderEarn(); return; }
         if (res.error){ toast('Something went wrong'); loadUser(); return; }
         state.user = res.user;
         toast('+' + res.coins_earned + ' coins!');
@@ -422,25 +458,25 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     }
 
     if (typeof show_11533496 === 'function'){
-      // Rewarded interstitial — see Monetag docs for full details.
+      // Rewarded interstitial — call left exactly as provided.
       show_11533496().then(function(){
-        creditCoins();
+        afterAd();
       }).catch(function(){
         toast('Ad failed to load, try again');
         renderEarn();
       });
     } else {
-      // Ad SDK not loaded (e.g. testing outside Telegram) — fall back gracefully.
-      toast('Ad unavailable, crediting anyway (dev mode)');
-      creditCoins();
+      toast('Ad SDK unavailable (dev mode)');
+      renderEarn();
     }
   }
 
   // ---------- render: PROFILE ----------
   function renderProfile(){
     var u = state.user || {};
+    var s = state.settings;
     var box = document.getElementById('tab-profile');
-    var referLink = 'https://t.me/' + BOT_USERNAME + '/' + APP_NAME + '?startapp=ref_' + (u.telegram_id||'');
+    var referLink = 'https://t.me/' + (s.bot_username||'') + '?start=ref_' + (u.telegram_id||'');
     var html = '';
     html += '<div class="profile-hero">';
     html += '  <img class="avatar" src="' + esc(u.photo_url || 'https://placehold.co/120x120/6C5CE7/ffffff?text=' + esc((u.first_name||'U')[0])) + '">';
@@ -453,14 +489,21 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     html += '<div class="panel"><h3>Refer &amp; Earn</h3>';
     html += '<div class="refer-box">' + ICONS.link.replace('class="ic"','class="ic" style="color:var(--purple);"') + '<input readonly id="referInput" value="' + esc(referLink) + '"></div>';
     html += '<div class="refer-actions"><button class="pill-btn" id="copyRefBtn">' + ICONS.link + 'Copy Link</button><button class="pill-btn alt" id="shareRefBtn">' + ICONS.share + 'Share</button></div>';
-    html += '<div style="font-size:11px;color:var(--sub);margin-top:10px;text-align:center;">প্রতি রেফারে আপনি পাবেন +' + state.settings.coins_per_refer + ' কয়েন</div>';
+    html += '<div style="font-size:11px;color:var(--sub);margin-top:10px;text-align:center;">প্রতি রেফারে আপনি পাবেন +' + s.coins_per_refer + ' কয়েন</div>';
     html += '</div>';
 
     html += '<div class="panel"><h3>More</h3>';
-    html += '<div class="row-link" id="supportRow"><div class="left"><div class="ic-badge">' + ICONS.support + '</div><span>Contact Support</span></div>' + ICONS.chevron.replace('class="ic"','class="ic arrow"') + '</div>';
-    html += '<div class="row-link" id="tutorialRow"><div class="left"><div class="ic-badge">' + ICONS.video + '</div><span>Tutorial Video</span></div>' + ICONS.chevron.replace('class="ic"','class="ic arrow"') + '</div>';
+    if (s.contact_support_url){
+      html += '<div class="row-link" id="supportRow"><div class="left"><div class="ic-badge">' + ICONS.support + '</div><span>Contact Support</span></div>' + ICONS.chevron.replace('class="ic"','class="ic arrow"') + '</div>';
+    }
+    if (s.tutorial_video_url){
+      html += '<div class="row-link" id="tutorialRow"><div class="left"><div class="ic-badge">' + ICONS.video + '</div><span>Tutorial Video</span></div>' + ICONS.chevron.replace('class="ic"','class="ic arrow"') + '</div>';
+    }
     if (state.isAdmin){
       html += '<div class="row-link" id="adminRow"><div class="left"><div class="ic-badge">' + ICONS.gift + '</div><span>Admin Panel</span></div>' + ICONS.chevron.replace('class="ic"','class="ic arrow"') + '</div>';
+    }
+    if (!s.contact_support_url && !s.tutorial_video_url && !state.isAdmin){
+      html += '<div class="empty" style="padding:10px;">Nothing here yet.</div>';
     }
     html += '</div>';
 
@@ -476,13 +519,13 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
       var url = 'https://t.me/share/url?url=' + encodeURIComponent(referLink) + '&text=' + encodeURIComponent('Join and get bots free!');
       if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
     };
-    document.getElementById('supportRow').onclick = function(){
-      var url = 'https://t.me/YourSupportUsername'; // TODO: set support username
-      if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+    var supportRow = document.getElementById('supportRow');
+    if (supportRow) supportRow.onclick = function(){
+      if (tg && tg.openTelegramLink && s.contact_support_url.indexOf('t.me') !== -1) tg.openTelegramLink(s.contact_support_url);
+      else window.open(s.contact_support_url, '_blank');
     };
-    document.getElementById('tutorialRow').onclick = function(){
-      window.open('https://t.me/YourChannel', '_blank'); // TODO: set tutorial link
-    };
+    var tutorialRow = document.getElementById('tutorialRow');
+    if (tutorialRow) tutorialRow.onclick = function(){ window.open(s.tutorial_video_url, '_blank'); };
     var adminRow = document.getElementById('adminRow');
     if (adminRow) adminRow.onclick = function(){ location.href = '/admin?tid=' + tgUser.id; };
   }
@@ -518,10 +561,18 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     return fetch('/api/auth', {
       method:'POST',
       headers: Object.assign({'Content-Type':'application/json'}, initDataHeader?{'X-Init-Data':initDataHeader}:{}),
-      body: JSON.stringify({ initData: initDataHeader, devUser: tgUser, startParam: refFromStart })
+      body: JSON.stringify({ initData: initDataHeader, devUser: tgUser })
     }).then(function(r){ return r.json(); }).then(function(res){
-      if (res.user){ state.user = res.user; state.isAdmin = res.isAdmin; state.settings = res.settings || state.settings; }
+      if (res.settings) state.settings = res.settings;
+      if (res.needsStart || !res.user){
+        renderGate();
+        return;
+      }
+      state.user = res.user; state.isAdmin = res.isAdmin;
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('app').style.display = '';
       renderHome(); renderProfile(); renderEarn();
+      loadBots();
     });
   }
 
@@ -535,7 +586,6 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
   renderNav();
   renderHome(); renderStore(); renderEarn(); renderProfile();
   loadUser();
-  loadBots();
 })();
 </script>
 </body>
