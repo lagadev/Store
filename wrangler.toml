@@ -5,7 +5,7 @@ compatibility_date = "2024-09-23"
 [[d1_databases]]
 binding = "DB"
 database_name = "store"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "de6ad7c0-e283-4a05-998c-ef1948f68157"
 
 [vars]
 # Your personal Telegram numeric ID — this account gets automatic admin access.
