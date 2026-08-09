@@ -1,4 +1,4 @@
-hereexport const ADMIN_HTML = `<!DOCTYPE html>
+export const ADMIN_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
