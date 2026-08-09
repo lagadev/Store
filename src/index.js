@@ -1,4 +1,4 @@
-hereimport { INDEX_HTML } from "./frontend.js";
+import { INDEX_HTML } from "./frontend.js";
 import { ADMIN_HTML } from "./admin.js";
 
 const CORS = {
