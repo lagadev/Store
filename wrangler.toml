@@ -1,16 +1,25 @@
-name = "telebot-store"
+name = "store"
 main = "src/index.js"
 compatibility_date = "2024-09-23"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "telebot_store_db"
-database_id = "de6ad7c0-e283-4a05-998c-ef1948f68157"
+database_name = "store"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
 
 [vars]
 # Your personal Telegram numeric ID — this account gets automatic admin access.
 ADMIN_ID = "6040791692"
-# Optional: paste your BotFather token here to enable real Telegram initData
-# signature verification. Leave blank while testing to skip verification.
-BOT_TOKEN = "8666069596:AAEI9hbZURbcRW6_OetMdpyt_bLokC1jYJ0"
+# REQUIRED (not optional anymore): your BotFather token. Used to verify
+# Telegram initData signatures, receive /start via webhook, send the
+# welcome message, and send broadcasts.
+BOT_TOKEN = "8969017696:AAG8sZmTyCzyugydCFG3M4ZJeNEh8BWxYUs"
+# Optional: set this to whatever you configure as the webhook secret token
+# (see README "Register the webhook"). Leave blank to skip the check.
+WEBHOOK_SECRET = ""
+
+# Note: coin-per-ad, daily ad limit, coin-per-refer, minimum ad-watch time,
+# the /start welcome message (image/text/button), bot username, support
+# link, and tutorial link all live in the `settings` table in D1 — editable
+# anytime from /admin without redeploying.
 
