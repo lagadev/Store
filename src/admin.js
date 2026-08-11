@@ -16,8 +16,9 @@ export const ADMIN_HTML = `<!DOCTYPE html>
 body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);}
 svg.ic{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block;}
 
-.topbar{background:linear-gradient(120deg,#2E2657,#463A87 55%,var(--purple));color:#fff;padding:22px 20px 60px;}
+.topbar{background:linear-gradient(120deg,#2E2657,#463A87 55%,var(--purple));color:#fff;padding:18px 20px 60px;}
 .topbar-inner{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:12px;}
+.back-btn{width:40px;height:40px;border-radius:13px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;flex:none;border:none;color:#fff;text-decoration:none;}
 .topbar .badge-ic{width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;flex:none;}
 .topbar h1{font-family:'Baloo 2';font-size:19px;margin:0;}
 .topbar .sub{font-size:12px;opacity:.75;margin-top:2px;}
@@ -46,7 +47,6 @@ img.thumb-sm{width:76px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;ba
 .btn-del{background:#FFE1E1;color:var(--red);}
 .btn-primary{background:var(--purple);color:#fff;padding:13px 20px;border-radius:14px;font-weight:800;font-size:13px;border:none;display:inline-flex;align-items:center;gap:8px;}
 .btn-ghost{background:#F1EEFF;color:var(--purple-dark);padding:13px 20px;border-radius:14px;font-weight:800;font-size:13px;border:none;}
-.btn-danger{background:#FFE1E1;color:var(--red);padding:13px 20px;border-radius:14px;font-weight:800;font-size:13px;border:none;}
 
 form label{display:block;font-size:11.5px;font-weight:800;color:var(--sub);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.02em;}
 form input,form textarea{width:100%;padding:12px 13px;border-radius:13px;border:1.5px solid #E7E3F8;background:#FAF9FF;font-size:13.5px;font-family:inherit;color:var(--ink);}
@@ -86,6 +86,7 @@ form textarea{min-height:80px;resize:vertical;}
 </head>
 <body>
 <div class="topbar"><div class="topbar-inner">
+  <a class="back-btn" href="/" id="backBtn"></a>
   <div class="badge-ic" id="topGear"></div>
   <div><h1>Bot Store Admin</h1><div class="sub" id="topSub">Loading…</div></div>
 </div></div>
@@ -99,7 +100,7 @@ form textarea{min-height:80px;resize:vertical;}
     users: '<svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2.5 19c1-3 3.3-4.6 6.5-4.6s5.5 1.6 6.5 4.6"/><path d="M15.5 5.2a3 3 0 0 1 0 5.8"/><path d="M17.8 14.6c2.2.4 3.7 1.9 4.5 4.4"/></svg>',
     gear: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2.4-1.4L14 3h-4l-.16 2.2a7 7 0 0 0-2.4 1.4l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .5.05.95.14 1.4l-2 1.5 2 3.4 2.3-.9c.7.6 1.5 1.1 2.4 1.4L10 21h4l.16-2.2c.9-.3 1.7-.8 2.4-1.4l2.3.9 2-3.4-2-1.5c.09-.45.14-.9.14-1.4Z"/></svg>',
     shield: '<svg class="ic" style="width:30px;height:30px;" viewBox="0 0 24 24"><path d="M12 3.5 19 6v6c0 4.6-3 7.6-7 8.5-4-.9-7-3.9-7-8.5V6l7-2.5Z"/></svg>',
-    megaphone: '<svg class="ic" viewBox="0 0 24 24"><path d="M3 10v4a1 1 0 0 0 1 1h2l4.5 3.5v-13L6 9H4a1 1 0 0 0-1 1Z"/><path d="M15 8.5a4 4 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg>'
+    back: '<svg class="ic" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg>'
   };
 
   var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -123,6 +124,11 @@ form textarea{min-height:80px;resize:vertical;}
   function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2000); }
 
   document.getElementById('topGear').innerHTML = ICONS.gear;
+  document.getElementById('backBtn').innerHTML = ICONS.back;
+  document.getElementById('backBtn').title = 'Back to app';
+  document.getElementById('backBtn').onclick = function(e){
+    if (tg){ e.preventDefault(); location.href = '/'; }
+  };
 
   function boot(){
     api('/api/admin/check').then(function(res){
@@ -167,7 +173,6 @@ form textarea{min-height:80px;resize:vertical;}
     html += '<div class="tabs">';
     html += '  <button class="tab-btn ' + (state.tab==='bots'?'active':'') + '" data-tab="bots">' + ICONS.box + ' Bots</button>';
     html += '  <button class="tab-btn ' + (state.tab==='users'?'active':'') + '" data-tab="users">' + ICONS.users + ' Users</button>';
-    html += '  <button class="tab-btn ' + (state.tab==='broadcast'?'active':'') + '" data-tab="broadcast">' + ICONS.megaphone + ' Broadcast</button>';
     html += '  <button class="tab-btn ' + (state.tab==='settings'?'active':'') + '" data-tab="settings">' + ICONS.gear + ' Settings</button>';
     html += '</div>';
 
@@ -180,7 +185,6 @@ form textarea{min-height:80px;resize:vertical;}
 
     if (state.tab === 'bots') renderBotsTab();
     else if (state.tab === 'users') renderUsersTab();
-    else if (state.tab === 'broadcast') renderBroadcastTab();
     else renderSettingsTab();
   }
 
@@ -268,7 +272,7 @@ form textarea{min-height:80px;resize:vertical;}
       html += '<td data-label="Actions"><button class="btn ' + (u.is_banned?'btn-primary':'btn-del') + '" data-ban="' + u.id + '" data-state="' + (u.is_banned?0:1) + '">' + (u.is_banned?'Unban':'Ban') + '</button></td>';
       html += '</tr>';
     });
-    if (!state.users.length) html += '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px;">No users yet — they appear here after /start.</td></tr>';
+    if (!state.users.length) html += '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:24px;">No users yet — they appear here after opening the Mini App.</td></tr>';
     html += '</tbody></table></div>';
     el.innerHTML = html;
 
@@ -280,47 +284,13 @@ form textarea{min-height:80px;resize:vertical;}
     });
   }
 
-  // ================= BROADCAST =================
-  function renderBroadcastTab(){
-    var el = document.getElementById('tabContent');
-    var html = '<div class="card">';
-    html += '<div class="card-head"><b>Broadcast to All Users</b><span class="badge">' + state.users.length + ' recipients</span></div>';
-    html += '<p class="hint">Sends an image (optional), text, and an optional button to every non-banned user via the bot. This is sent in the background — large lists may take a minute to finish.</p>';
-    html += '<form id="broadcastForm">';
-    html += '<label>Image URL (optional)</label><input name="image_url" placeholder="https://...">';
-    html += '<label>Message Text</label><textarea name="text" placeholder="Type the exact message users will see…"></textarea>';
-    html += '<div class="row2"><div><label>Button Text (optional)</label><input name="button_text" placeholder="e.g. Open Store"></div>';
-    html += '<div><label>Button URL (optional)</label><input name="button_url" placeholder="https://..."></div></div>';
-    html += '<div class="actions-row"><button type="submit" class="btn-primary">' + ICONS.megaphone + ' Send Broadcast</button></div>';
-    html += '</form></div>';
-    el.innerHTML = html;
-
-    document.getElementById('broadcastForm').onsubmit = function(e){
-      e.preventDefault();
-      var f = e.target;
-      var payload = {
-        image_url: f.image_url.value.trim(),
-        text: f.text.value,
-        button_text: f.button_text.value.trim(),
-        button_url: f.button_url.value.trim()
-      };
-      if (!payload.text && !payload.image_url){ toast('Add text or an image first'); return; }
-      if (!confirm('Send this to all ' + state.users.length + ' users now?')) return;
-      api('/api/admin/broadcast', { method:'POST', body: JSON.stringify(payload) }).then(function(res){
-        if (res.error){ toast(res.error); return; }
-        toast('Broadcast queued for ' + res.queued + ' users');
-        f.reset();
-      });
-    };
-  }
-
   // ================= SETTINGS =================
   function renderSettingsTab(){
     var el = document.getElementById('tabContent');
     var s = state.settings;
     var html = '<div class="card">';
     html += '<div class="card-head"><b>App Settings</b></div>';
-    html += '<p class="hint">Everything below applies instantly across the app and bot — no redeploy needed.</p>';
+    html += '<p class="hint">Everything below applies instantly across the app — no redeploy needed.</p>';
     html += '<form id="settingsForm">';
 
     html += '<div class="section-divider">Coin Economy</div>';
@@ -332,13 +302,13 @@ form textarea{min-height:80px;resize:vertical;}
     html += '<label>Minimum Ad Watch Time (seconds)</label><input name="min_ad_seconds" type="number" min="1" value="' + s.min_ad_seconds + '">';
     html += '<p class="hint" style="margin-top:6px;">Coins are only credited if the ad was open for at least this long.</p>';
 
-    html += '<div class="section-divider">Bot /start Message</div>';
-    html += '<label>Welcome Image URL (optional)</label><input name="start_image_url" value="' + esc(s.start_image_url) + '" placeholder="https://...">';
-    html += '<label>Welcome Text</label><textarea name="start_text">' + esc(s.start_text) + '</textarea>';
-    html += '<label>Open-App Button Text</label><input name="start_button_text" value="' + esc(s.start_button_text) + '">';
-
-    html += '<div class="section-divider">Links</div>';
-    html += '<label>Bot Username (no @)</label><input name="bot_username" value="' + esc(s.bot_username) + '" placeholder="YourBotUsername">';
+    html += '<div class="section-divider">Links &amp; Referral</div>';
+    html += '<div class="row2">';
+    html += '<div><label>Bot Username (no @)</label><input name="bot_username" value="' + esc(s.bot_username) + '" placeholder="YourBotUsername"></div>';
+    html += '<div><label>Mini App Short Name</label><input name="app_short_name" value="' + esc(s.app_short_name) + '" placeholder="store"></div>';
+    html += '</div>';
+    html += '<p class="hint" style="margin-top:6px;">Together these build the referral link: https://t.me/&lt;bot_username&gt;/&lt;app_short_name&gt;?startapp=ref_&lt;id&gt;</p>';
+    html += '<label>Refer Share Message</label><input name="refer_share_text" value="' + esc(s.refer_share_text) + '" placeholder="Join and get TBC Bot Template For Free!">';
     html += '<label>Contact Support URL</label><input name="contact_support_url" value="' + esc(s.contact_support_url) + '" placeholder="https://t.me/YourSupport">';
     html += '<label>Tutorial Video URL</label><input name="tutorial_video_url" value="' + esc(s.tutorial_video_url) + '" placeholder="https://...">';
 
@@ -354,10 +324,9 @@ form textarea{min-height:80px;resize:vertical;}
         daily_ad_limit: Number(f.daily_ad_limit.value) || 0,
         coins_per_refer: Number(f.coins_per_refer.value) || 0,
         min_ad_seconds: Number(f.min_ad_seconds.value) || 1,
-        start_image_url: f.start_image_url.value.trim(),
-        start_text: f.start_text.value,
-        start_button_text: f.start_button_text.value.trim() || 'Open App',
         bot_username: f.bot_username.value.trim().replace(/^@/,''),
+        app_short_name: f.app_short_name.value.trim() || 'store',
+        refer_share_text: f.refer_share_text.value.trim(),
         contact_support_url: f.contact_support_url.value.trim(),
         tutorial_video_url: f.tutorial_video_url.value.trim()
       };
