@@ -79,9 +79,8 @@ const SETTING_DEFAULTS = {
   coins_per_refer: "20",
   min_ad_seconds: "7",
   bot_username: "",
-  start_text: "Welcome!",
-  start_image_url: "",
-  start_button_text: "Open App",
+  app_short_name: "store",
+  refer_share_text: "Join and get TBC Bot Template For Free!",
   contact_support_url: "",
   tutorial_video_url: "",
 };
@@ -96,9 +95,8 @@ async function getSettings(db) {
     coins_per_refer: Number(s.coins_per_refer ?? SETTING_DEFAULTS.coins_per_refer),
     min_ad_seconds: Number(s.min_ad_seconds ?? SETTING_DEFAULTS.min_ad_seconds),
     bot_username: s.bot_username ?? SETTING_DEFAULTS.bot_username,
-    start_text: s.start_text ?? SETTING_DEFAULTS.start_text,
-    start_image_url: s.start_image_url ?? SETTING_DEFAULTS.start_image_url,
-    start_button_text: s.start_button_text ?? SETTING_DEFAULTS.start_button_text,
+    app_short_name: s.app_short_name ?? SETTING_DEFAULTS.app_short_name,
+    refer_share_text: s.refer_share_text ?? SETTING_DEFAULTS.refer_share_text,
     contact_support_url: s.contact_support_url ?? SETTING_DEFAULTS.contact_support_url,
     tutorial_video_url: s.tutorial_video_url ?? SETTING_DEFAULTS.tutorial_video_url,
   };
@@ -110,19 +108,8 @@ async function setSetting(db, key, value) {
     .run();
 }
 
-// ---------- users (created ONLY from the /start webhook) ----------
-async function getUser(db, telegramId) {
-  const row = await db.prepare("SELECT * FROM users WHERE telegram_id = ?").bind(telegramId).first();
-  if (!row) return null;
-  if (row.last_ad_date !== todayStr()) {
-    await db.prepare("UPDATE users SET ads_watched_today = 0, last_ad_date = ? WHERE id = ?").bind(todayStr(), row.id).run();
-    row.ads_watched_today = 0;
-    row.last_ad_date = todayStr();
-  }
-  return row;
-}
-
-async function createUserFromStart(db, tgUser, referredByTgId) {
+// ---------- users (auto-created the first time the Mini App opens) ----------
+async function getOrCreateUser(db, tgUser, referredByTgId) {
   let row = await db.prepare("SELECT * FROM users WHERE telegram_id = ?").bind(tgUser.id).first();
 
   if (!row) {
@@ -150,10 +137,18 @@ async function createUserFromStart(db, tgUser, referredByTgId) {
     row = await db.prepare("SELECT * FROM users WHERE telegram_id = ?").bind(tgUser.id).first();
   } else {
     await db
-      .prepare("UPDATE users SET username = ?, first_name = ? WHERE telegram_id = ?")
-      .bind(tgUser.username || row.username, tgUser.first_name || row.first_name, tgUser.id)
+      .prepare("UPDATE users SET username = ?, first_name = ?, photo_url = ? WHERE telegram_id = ?")
+      .bind(tgUser.username || row.username, tgUser.first_name || row.first_name, tgUser.photo_url || row.photo_url, tgUser.id)
       .run();
+    row = await db.prepare("SELECT * FROM users WHERE telegram_id = ?").bind(tgUser.id).first();
   }
+
+  if (row.last_ad_date !== todayStr()) {
+    await db.prepare("UPDATE users SET ads_watched_today = 0, last_ad_date = ? WHERE id = ?").bind(todayStr(), row.id).run();
+    row.ads_watched_today = 0;
+    row.last_ad_date = todayStr();
+  }
+
   return row;
 }
 
@@ -161,52 +156,8 @@ function isAdmin(env, tgId) {
   return String(tgId) === String(env.ADMIN_ID);
 }
 
-// ---------- Telegram Bot API ----------
-async function tgApi(env, method, payload) {
-  if (!env.BOT_TOKEN) return { ok: false, description: "BOT_TOKEN not configured" };
-  const res = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return res.json().catch(() => ({ ok: false }));
-}
-
-async function sendStartMessage(env, db, chatId, miniAppUrl) {
-  const s = await getSettings(db);
-  const keyboard = { inline_keyboard: [[{ text: s.start_button_text || "Open App", web_app: { url: miniAppUrl } }]] };
-  if (s.start_image_url) {
-    return tgApi(env, "sendPhoto", { chat_id: chatId, photo: s.start_image_url, caption: s.start_text || "", reply_markup: keyboard });
-  }
-  return tgApi(env, "sendMessage", { chat_id: chatId, text: s.start_text || "Welcome!", reply_markup: keyboard });
-}
-
-async function runBroadcast(env, db, payload) {
-  const { results } = await db.prepare("SELECT telegram_id FROM users WHERE is_banned = 0").all();
-  const chatIds = results.map((r) => r.telegram_id);
-  const keyboard = payload.button_text && payload.button_url
-    ? { inline_keyboard: [[{ text: payload.button_text, url: payload.button_url }]] }
-    : undefined;
-
-  const chunkSize = 20;
-  for (let i = 0; i < chatIds.length; i += chunkSize) {
-    const chunk = chatIds.slice(i, i + chunkSize);
-    await Promise.allSettled(
-      chunk.map((chatId) => {
-        const base = { chat_id: chatId, reply_markup: keyboard };
-        if (payload.image_url) {
-          return tgApi(env, "sendPhoto", { ...base, photo: payload.image_url, caption: payload.text || "" });
-        }
-        return tgApi(env, "sendMessage", { ...base, text: payload.text || "" });
-      })
-    );
-    if (i + chunkSize < chatIds.length) await new Promise((r) => setTimeout(r, 1100));
-  }
-  return chatIds.length;
-}
-
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
     const { pathname } = url;
 
@@ -215,37 +166,12 @@ export default {
     if (pathname === "/" || pathname === "/index.html") return html(INDEX_HTML);
     if (pathname === "/admin") return html(ADMIN_HTML);
 
-    const db = env.DB;
-
-    // ---------- Telegram webhook ----------
-    if (pathname === "/webhook" && request.method === "POST") {
-      if (env.WEBHOOK_SECRET) {
-        const secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
-        if (secret !== env.WEBHOOK_SECRET) return new Response("forbidden", { status: 403 });
-      }
-      const update = await request.json().catch(() => ({}));
-      const msg = update.message;
-      if (msg && msg.text && msg.text.indexOf("/start") === 0) {
-        const parts = msg.text.trim().split(/\s+/);
-        const payload = parts[1] || "";
-        const referredByTgId = payload.indexOf("ref_") === 0 ? payload.slice(4) : null;
-
-        await createUserFromStart(db, {
-          id: msg.from.id,
-          username: msg.from.username || "",
-          first_name: msg.from.first_name || "User",
-        }, referredByTgId);
-
-        const miniAppUrl = url.origin + "/";
-        ctx.waitUntil(sendStartMessage(env, db, msg.chat.id, miniAppUrl));
-      }
-      return json({ ok: true });
-    }
-
     if (!pathname.startsWith("/api/")) return new Response("Not found", { status: 404 });
 
+    const db = env.DB;
+
     try {
-      // ---------- /api/auth — read-only, never creates a user ----------
+      // ---------- /api/auth ----------
       if (pathname === "/api/auth" && request.method === "POST") {
         const body = await request.json().catch(() => ({}));
         const initData = request.headers.get("X-Init-Data") || body.initData || "";
@@ -253,18 +179,16 @@ export default {
         if (!user && body.devUser) user = body.devUser;
         if (!user) return json({ error: "unauthorized" }, 401);
 
+        const row = await getOrCreateUser(db, user, body.startParam);
         const settings = await getSettings(db);
-        const row = await getUser(db, user.id);
-        if (!row) return json({ user: null, needsStart: true, settings });
         return json({ user: row, isAdmin: isAdmin(env, user.id), settings });
       }
 
       if (pathname === "/api/me" && request.method === "GET") {
         const user = await getIdentity(request, env);
         if (!user) return json({ error: "unauthorized" }, 401);
+        const row = await getOrCreateUser(db, user, url.searchParams.get("ref"));
         const settings = await getSettings(db);
-        const row = await getUser(db, user.id);
-        if (!row) return json({ user: null, needsStart: true, settings });
         return json({ user: row, isAdmin: isAdmin(env, user.id), settings });
       }
 
@@ -276,9 +200,7 @@ export default {
       if (pathname === "/api/earn/watch-ad" && request.method === "POST") {
         const user = await getIdentity(request, env);
         if (!user) return json({ error: "unauthorized" }, 401);
-        const row = await getUser(db, user.id);
-        if (!row) return json({ error: "needs_start" }, 403);
-
+        const row = await getOrCreateUser(db, user);
         const body = await request.json().catch(() => ({}));
         const settings = await getSettings(db);
         const durationMs = Number(body.duration_ms) || 0;
@@ -315,12 +237,10 @@ export default {
         let progress = { unlocked: 0 };
         let balance = 0;
         if (user) {
-          const row = await getUser(db, user.id);
-          if (row) {
-            balance = row.balance;
-            const p = await db.prepare("SELECT * FROM user_bot_progress WHERE user_id = ? AND bot_id = ?").bind(row.id, botId).first();
-            if (p) progress = p;
-          }
+          const row = await getOrCreateUser(db, user);
+          balance = row.balance;
+          const p = await db.prepare("SELECT * FROM user_bot_progress WHERE user_id = ? AND bot_id = ?").bind(row.id, botId).first();
+          if (p) progress = p;
         }
         return json({ bot, progress, balance });
       }
@@ -330,8 +250,7 @@ export default {
         const botId = Number(m[1]);
         const user = await getIdentity(request, env);
         if (!user) return json({ error: "unauthorized" }, 401);
-        const row = await getUser(db, user.id);
-        if (!row) return json({ error: "needs_start" }, 403);
+        const row = await getOrCreateUser(db, user);
 
         const bot = await db.prepare("SELECT * FROM bots WHERE id = ?").bind(botId).first();
         if (!bot) return json({ error: "not found" }, 404);
@@ -409,18 +328,10 @@ export default {
       if (pathname === "/api/admin/settings" && request.method === "PUT") {
         const b = await request.json();
         const numeric = ["coins_per_ad", "daily_ad_limit", "coins_per_refer", "min_ad_seconds"];
-        const text = ["bot_username", "start_text", "start_image_url", "start_button_text", "contact_support_url", "tutorial_video_url"];
+        const text = ["bot_username", "app_short_name", "refer_share_text", "contact_support_url", "tutorial_video_url"];
         for (const k of numeric) if (b[k] != null) await setSetting(db, k, Math.max(0, Number(b[k]) || 0));
         for (const k of text) if (b[k] != null) await setSetting(db, k, String(b[k]));
         return json(await getSettings(db));
-      }
-
-      if (pathname === "/api/admin/broadcast" && request.method === "POST") {
-        const b = await request.json().catch(() => ({}));
-        if (!b.text && !b.image_url) return json({ error: "text or image_url required" }, 400);
-        const countRow = await db.prepare("SELECT COUNT(*) c FROM users WHERE is_banned = 0").first();
-        ctx.waitUntil(runBroadcast(env, db, b));
-        return json({ ok: true, queued: countRow.c });
       }
 
       if (pathname === "/api/admin/stats" && request.method === "GET") {
