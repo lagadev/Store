@@ -23,13 +23,6 @@ body{margin:0;font-family:'Inter','Noto Sans Bengali',sans-serif;background:var(
 #app{max-width:480px;margin:0 auto;min-height:100vh;background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);padding-bottom:100px;position:relative;}
 svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block;}
 
-/* ---------- gate screen ---------- */
-#gate{max-width:480px;margin:0 auto;min-height:100vh;background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 26px;text-align:center;}
-#gate .badge{width:82px;height:82px;border-radius:26px;background:linear-gradient(150deg,var(--purple-2),var(--purple));display:flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:var(--shadow);}
-#gate h1{font-family:'Baloo 2';font-size:21px;margin:0 0 10px;}
-#gate p{font-size:13.5px;color:var(--sub);line-height:1.6;margin:0 0 26px;max-width:320px;}
-#gate .btn-primary,#gate .btn-secondary{max-width:280px;}
-
 /* ---------- top bar ---------- */
 .topbar{display:flex;align-items:center;gap:10px;padding:20px 18px 6px;}
 .avatar{width:52px;height:52px;border-radius:18px;object-fit:cover;border:3px solid #fff;box-shadow:var(--shadow-sm);background:#ddd;}
@@ -149,9 +142,7 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
 </style>
 </head>
 <body>
-<div id="gate" style="display:none;"></div>
-
-<div id="app" style="display:none;">
+<div id="app">
   <div id="tab-home"></div>
   <div id="tab-store" style="display:none;"></div>
   <div id="tab-earn" style="display:none;"></div>
@@ -187,9 +178,7 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     support: '<svg class="ic" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 3 6.2L4 19l.9-3.1A7.96 7.96 0 0 1 4 12Z"/></svg>',
     tag: '<svg class="ic" style="width:15px;height:15px;" viewBox="0 0 24 24"><path d="M3 12.5 12 3.5h7.5v7.5L10.5 21 3 12.5Z"/><circle cx="15.5" cy="8.5" r="1.4" fill="currentColor" stroke="none"/></svg>',
     link: '<svg class="ic" style="width:16px;height:16px;" viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9.5"/><path d="M11 7l1-1a3.2 3.2 0 0 1 4.5 4.5l-1.2 1.2"/><path d="M13 17l-1 1a3.2 3.2 0 0 1-4.5-4.5l1.2-1.2"/></svg>',
-    share: '<svg class="ic" style="width:16px;height:16px;" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="17" cy="18" r="2.3"/><path d="m8 10.8 7-3.6M8 13.2l7 3.6"/></svg>',
-    lock: '<svg class="ic" viewBox="0 0 24 24" style="width:34px;height:34px;color:#fff;"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>',
-    refresh: '<svg class="ic" style="width:16px;height:16px;" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15.5"/><path d="M4 20v-4.5h4.5"/></svg>'
+    share: '<svg class="ic" style="width:16px;height:16px;" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.3"/><circle cx="17" cy="6" r="2.3"/><circle cx="17" cy="18" r="2.3"/><path d="m8 10.8 7-3.6M8 13.2l7 3.6"/></svg>'
   };
 
   var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -201,11 +190,15 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     username: qs.get('username') || 'demo_user',
     first_name: qs.get('first_name') || 'Demo'
   };
+  var startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ? tg.initDataUnsafe.start_param : qs.get('startapp');
+  var refFromStart = null;
+  if (startParam && startParam.indexOf('ref_') === 0) refFromStart = startParam.replace('ref_','');
+
   var initDataHeader = (tg && tg.initData) ? tg.initData : '';
 
   var state = {
     user:null, isAdmin:false, bots:[],
-    settings:{ coins_per_ad:50, daily_ad_limit:10, coins_per_refer:20, min_ad_seconds:7, bot_username:'', contact_support_url:'', tutorial_video_url:'' },
+    settings:{ coins_per_ad:50, daily_ad_limit:10, coins_per_refer:20, min_ad_seconds:7, bot_username:'', app_short_name:'store', refer_share_text:'', contact_support_url:'', tutorial_video_url:'' },
     activeTab:'home', currentBot:null
   };
 
@@ -231,28 +224,9 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     });
   }
 
-  // ---------- gate screen (forces /start) ----------
-  function renderGate(){
-    document.getElementById('app').style.display = 'none';
-    var gate = document.getElementById('gate');
-    gate.style.display = 'flex';
-    var botUser = state.settings.bot_username;
-    var html = '';
-    html += '<div class="badge">' + ICONS.lock + '</div>';
-    html += '<h1>আগে বট /start করুন</h1>';
-    html += '<p>এই মিনি অ্যাপ ব্যবহার করতে হলে প্রথমে আমাদের বটে গিয়ে <b>/start</b> চাপতে হবে। শুরু করার পর ফিরে এসে নিচের বাটনে চাপ দিন।</p>';
-    if (botUser){
-      html += '<button class="btn-primary" id="openBotBtn" style="margin-bottom:12px;">' + ICONS.play.replace('class="ic"','class="ic" style="width:16px;height:16px;"') + ' Open Bot &amp; /start</button>';
-    }
-    html += '<button class="btn-secondary" id="recheckBtn">' + ICONS.refresh + ' আমি /start করেছি — Refresh</button>';
-    gate.innerHTML = html;
-
-    var openBtn = document.getElementById('openBotBtn');
-    if (openBtn) openBtn.onclick = function(){
-      var url = 'https://t.me/' + botUser + '?start=app';
-      if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
-    };
-    document.getElementById('recheckBtn').onclick = function(){ loadUser(); };
+  function referLink(){
+    var s = state.settings, u = state.user || {};
+    return 'https://t.me/' + (s.bot_username||'') + '/' + (s.app_short_name||'store') + '?startapp=ref_' + (u.telegram_id||'');
   }
 
   // ---------- nav icons ----------
@@ -476,7 +450,7 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     var u = state.user || {};
     var s = state.settings;
     var box = document.getElementById('tab-profile');
-    var referLink = 'https://t.me/' + (s.bot_username||'') + '?start=ref_' + (u.telegram_id||'');
+    var link = referLink();
     var html = '';
     html += '<div class="profile-hero">';
     html += '  <img class="avatar" src="' + esc(u.photo_url || 'https://placehold.co/120x120/6C5CE7/ffffff?text=' + esc((u.first_name||'U')[0])) + '">';
@@ -487,7 +461,7 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     html += '<div class="balance-strip"><div><div class="l">Total Coins</div><div class="v">' + ICONS.coin.replace('class="ic"','class="ic" style="width:18px;height:18px;"') + (u.balance||0) + '</div></div><div style="text-align:right;"><div class="l">Bots Unlocked</div><div class="v" style="justify-content:flex-end;">' + (u.bots_unlocked||0) + '</div></div></div>';
 
     html += '<div class="panel"><h3>Refer &amp; Earn</h3>';
-    html += '<div class="refer-box">' + ICONS.link.replace('class="ic"','class="ic" style="color:var(--purple);"') + '<input readonly id="referInput" value="' + esc(referLink) + '"></div>';
+    html += '<div class="refer-box">' + ICONS.link.replace('class="ic"','class="ic" style="color:var(--purple);"') + '<input readonly id="referInput" value="' + esc(link) + '"></div>';
     html += '<div class="refer-actions"><button class="pill-btn" id="copyRefBtn">' + ICONS.link + 'Copy Link</button><button class="pill-btn alt" id="shareRefBtn">' + ICONS.share + 'Share</button></div>';
     html += '<div style="font-size:11px;color:var(--sub);margin-top:10px;text-align:center;">প্রতি রেফারে আপনি পাবেন +' + s.coins_per_refer + ' কয়েন</div>';
     html += '</div>';
@@ -516,7 +490,8 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
       toast('Link copied!');
     };
     document.getElementById('shareRefBtn').onclick = function(){
-      var url = 'https://t.me/share/url?url=' + encodeURIComponent(referLink) + '&text=' + encodeURIComponent('Join and get bots free!');
+      var shareText = s.refer_share_text || 'Join and get TBC Bot Template For Free!';
+      var url = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(shareText);
       if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
     };
     var supportRow = document.getElementById('supportRow');
@@ -561,18 +536,10 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     return fetch('/api/auth', {
       method:'POST',
       headers: Object.assign({'Content-Type':'application/json'}, initDataHeader?{'X-Init-Data':initDataHeader}:{}),
-      body: JSON.stringify({ initData: initDataHeader, devUser: tgUser })
+      body: JSON.stringify({ initData: initDataHeader, devUser: tgUser, startParam: refFromStart })
     }).then(function(r){ return r.json(); }).then(function(res){
-      if (res.settings) state.settings = res.settings;
-      if (res.needsStart || !res.user){
-        renderGate();
-        return;
-      }
-      state.user = res.user; state.isAdmin = res.isAdmin;
-      document.getElementById('gate').style.display = 'none';
-      document.getElementById('app').style.display = '';
+      if (res.user){ state.user = res.user; state.isAdmin = res.isAdmin; state.settings = res.settings || state.settings; }
       renderHome(); renderProfile(); renderEarn();
-      loadBots();
     });
   }
 
@@ -586,6 +553,7 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
   renderNav();
   renderHome(); renderStore(); renderEarn(); renderProfile();
   loadUser();
+  loadBots();
 })();
 </script>
 </body>
