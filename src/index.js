@@ -156,6 +156,36 @@ function isAdmin(env, tgId) {
   return String(tgId) === String(env.ADMIN_ID);
 }
 
+// ---------- Telegram file delivery ----------
+async function sendTelegramFile(env, chatId, fileId, fileKind) {
+  const methods = {
+    document: "sendDocument",
+    video: "sendVideo",
+    audio: "sendAudio",
+    photo: "sendPhoto",
+    animation: "sendAnimation",
+  };
+
+  const method = methods[fileKind] || "sendDocument";
+
+  const body = { chat_id: chatId };
+  body[fileKind === "photo" ? "photo" : fileKind] = fileId;
+
+  const response = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result.ok) {
+    throw new Error(result.description || "Telegram file sending failed");
+  }
+
+  return result;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -256,7 +286,12 @@ export default {
         if (!bot) return json({ error: "not found" }, 404);
 
         const existing = await db.prepare("SELECT * FROM user_bot_progress WHERE user_id = ? AND bot_id = ?").bind(row.id, botId).first();
-        if (existing && existing.unlocked) return json({ redirect: bot.redirect_link, already: true });
+        if (existing && existing.unlocked) {
+          if (bot.delivery_type === "file") {
+            return json({ already: true, delivery_type: "file" });
+          }
+          return json({ redirect: bot.redirect_link, already: true });
+        }
 
         if (row.balance < bot.price_coins) {
           return json({ error: "insufficient_coins", need: bot.price_coins - row.balance }, 400);
@@ -271,7 +306,55 @@ export default {
           .bind(row.id, botId)
           .run();
 
-        return json({ redirect: bot.redirect_link });
+        if (bot.delivery_type === "file") {
+          if (!bot.file_id) {
+            return json({ error: "file_not_configured" }, 500);
+          }
+          try {
+            await sendTelegramFile(env, user.id, bot.file_id, bot.file_kind || "document");
+            return json({ delivered: true, delivery_type: "file" });
+          } catch (err) {
+            return json({ error: "file_delivery_failed", message: String(err.message || err) }, 500);
+          }
+        }
+
+        return json({ delivered: true, delivery_type: "redirect", redirect: bot.redirect_link });
+      }
+
+      // ---------- /api/bots/:id/deliver (re-deliver after unlock) ----------
+      m = pathname.match(/^\/api\/bots\/(\d+)\/deliver$/);
+      if (m && request.method === "POST") {
+        const botId = Number(m[1]);
+        const user = await getIdentity(request, env);
+        if (!user) return json({ error: "unauthorized" }, 401);
+        const row = await getOrCreateUser(db, user);
+
+        const bot = await db.prepare("SELECT * FROM bots WHERE id = ?").bind(botId).first();
+        if (!bot) return json({ error: "not_found" }, 404);
+
+        const progress = await db
+          .prepare("SELECT unlocked FROM user_bot_progress WHERE user_id = ? AND bot_id = ?")
+          .bind(row.id, botId)
+          .first();
+
+        if (!progress || !progress.unlocked) {
+          return json({ error: "not_unlocked" }, 403);
+        }
+
+        if (bot.delivery_type === "redirect") {
+          return json({ delivered: true, delivery_type: "redirect", redirect: bot.redirect_link });
+        }
+
+        if (!bot.file_id) {
+          return json({ error: "file_not_configured" }, 500);
+        }
+
+        try {
+          await sendTelegramFile(env, user.id, bot.file_id, bot.file_kind || "document");
+          return json({ delivered: true, delivery_type: "file" });
+        } catch (err) {
+          return json({ error: "file_delivery_failed", message: String(err.message || err) }, 500);
+        }
       }
 
       // ================= ADMIN ROUTES =================
@@ -288,10 +371,41 @@ export default {
 
       if (pathname === "/api/admin/bots" && request.method === "POST") {
         const b = await request.json();
+
+        const productType = b.product_type === "script" ? "script" : "bot_code";
+        const deliveryType = b.delivery_type === "file" ? "file" : "redirect";
+        const fileKind = ["document", "video", "audio", "photo", "animation"].includes(b.file_kind) ? b.file_kind : "document";
+
+        if (deliveryType === "file" && !b.file_id) {
+          return json({ error: "file_id_required" }, 400);
+        }
+        if (deliveryType === "redirect" && !b.redirect_link) {
+          return json({ error: "redirect_link_required" }, 400);
+        }
+
         await db
-          .prepare(`INSERT INTO bots (title, description, thumbnail_url, tutorial_url, redirect_link, price_coins, category, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-          .bind(b.title || "", b.description || "", b.thumbnail_url || "", b.tutorial_url || "", b.redirect_link || "", Number(b.price_coins) || 0, b.category || "New", b.is_active === false ? 0 : 1)
+          .prepare(
+            `INSERT INTO bots (
+              title, description, thumbnail_url, tutorial_url, redirect_link,
+              price_coins, category, is_active,
+              product_type, delivery_type, file_id, file_kind
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            b.title || "",
+            b.description || "",
+            b.thumbnail_url || "",
+            b.tutorial_url || "",
+            deliveryType === "redirect" ? (b.redirect_link || "") : "",
+            Number(b.price_coins) || 0,
+            b.category || "New",
+            b.is_active === false ? 0 : 1,
+            productType,
+            deliveryType,
+            deliveryType === "file" ? (b.file_id || "") : "",
+            fileKind
+          )
           .run();
         return json({ ok: true });
       }
@@ -299,9 +413,41 @@ export default {
       m = pathname.match(/^\/api\/admin\/bots\/(\d+)$/);
       if (m && request.method === "PUT") {
         const b = await request.json();
+
+        const productType = b.product_type === "script" ? "script" : "bot_code";
+        const deliveryType = b.delivery_type === "file" ? "file" : "redirect";
+        const fileKind = ["document", "video", "audio", "photo", "animation"].includes(b.file_kind) ? b.file_kind : "document";
+
+        if (deliveryType === "file" && !b.file_id) {
+          return json({ error: "file_id_required" }, 400);
+        }
+        if (deliveryType === "redirect" && !b.redirect_link) {
+          return json({ error: "redirect_link_required" }, 400);
+        }
+
         await db
-          .prepare(`UPDATE bots SET title=?, description=?, thumbnail_url=?, tutorial_url=?, redirect_link=?, price_coins=?, category=?, is_active=? WHERE id=?`)
-          .bind(b.title || "", b.description || "", b.thumbnail_url || "", b.tutorial_url || "", b.redirect_link || "", Number(b.price_coins) || 0, b.category || "New", b.is_active === false ? 0 : 1, Number(m[1]))
+          .prepare(
+            `UPDATE bots SET
+              title=?, description=?, thumbnail_url=?, tutorial_url=?, redirect_link=?,
+              price_coins=?, category=?, is_active=?,
+              product_type=?, delivery_type=?, file_id=?, file_kind=?
+            WHERE id=?`
+          )
+          .bind(
+            b.title || "",
+            b.description || "",
+            b.thumbnail_url || "",
+            b.tutorial_url || "",
+            deliveryType === "redirect" ? (b.redirect_link || "") : "",
+            Number(b.price_coins) || 0,
+            b.category || "New",
+            b.is_active === false ? 0 : 1,
+            productType,
+            deliveryType,
+            deliveryType === "file" ? (b.file_id || "") : "",
+            fileKind,
+            Number(m[1])
+          )
           .run();
         return json({ ok: true });
       }
