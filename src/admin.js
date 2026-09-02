@@ -72,6 +72,19 @@ form textarea{min-height:80px;resize:vertical;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#221B3F;color:#fff;padding:12px 22px;border-radius:14px;font-size:12.5px;z-index:80;opacity:0;pointer-events:none;transition:opacity .25s;font-weight:600;}
 .toast.show{opacity:1;}
 
+select{width:100%;padding:12px 13px;border-radius:13px;border:1.5px solid #E7E3F8;background:#FAF9FF;font-size:13.5px;font-family:inherit;color:var(--ink);}
+select:focus{outline:none;border-color:var(--purple-2);}
+.delivery-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+.delivery-option{margin:0!important;padding:15px;border:1.5px solid #E7E3F8;background:#FAF9FF;border-radius:16px;cursor:pointer;display:flex;align-items:flex-start;gap:10px;text-transform:none!important;letter-spacing:0!important;}
+.delivery-option:has(input:checked){border-color:var(--purple);background:#F3F0FF;}
+.delivery-option input{width:auto!important;margin-top:3px;}
+.delivery-option b{display:block;font-size:12.5px;}
+.delivery-option small{display:block;margin-top:4px;color:var(--sub);font-size:10.5px;line-height:1.45;}
+.file-hint{margin-top:9px;padding:10px 12px;border-radius:12px;background:#F1EEFF;color:var(--purple-dark);font-size:10.5px;line-height:1.5;}
+.switch-line{display:flex!important;align-items:center;gap:8px;margin:14px 0 0!important;padding:12px;border:1px solid var(--line);border-radius:13px;background:#FAF9FF;text-transform:none!important;}
+.switch-line input{width:auto!important;}
+@media(max-width:600px){.delivery-choice{grid-template-columns:1fr;}}
+
 @media (max-width: 680px){
   table thead{display:none;}
   table, tbody, tr, td{display:block;width:100%;}
@@ -220,39 +233,126 @@ form textarea{min-height:80px;resize:vertical;}
 
   function openBotForm(bot){
     var el = document.getElementById('tabContent');
-    var b = bot || { title:'', description:'', thumbnail_url:'', tutorial_url:'', redirect_link:'', price_coins:100, category:'New', is_active:1 };
-    var html = '<div class="card">';
-    html += '<div class="card-head"><b>' + (bot ? 'Edit Bot' : 'Add New Bot') + '</b></div>';
+
+    var b = bot || {
+      title:'', description:'', thumbnail_url:'', tutorial_url:'',
+      redirect_link:'', file_id:'', file_kind:'document',
+      delivery_type:'redirect', product_type:'bot_code',
+      price_coins:100, category:'New', is_active:1
+    };
+
+    var html = '';
+    html += '<div class="card">';
+    html += '<div class="card-head"><div>';
+    html += '<div style="font-size:18px;font-weight:800;">' + (bot ? 'Edit Product' : 'Create Product') + '</div>';
+    html += '<div class="hint" style="margin:4px 0 0;">Sell any digital product, bot code or script.</div>';
+    html += '</div></div>';
+
     html += '<form id="botForm">';
-    html += '<label>Title</label><input name="title" value="' + esc(b.title) + '" required>';
-    html += '<label>Description (shown exactly as typed)</label><textarea name="description">' + esc(b.description) + '</textarea>';
-    html += '<label>Thumbnail Image URL (16:9)</label><input name="thumbnail_url" value="' + esc(b.thumbnail_url) + '" placeholder="https://...">';
-    html += '<label>Tutorial Video Link (optional)</label><input name="tutorial_url" value="' + esc(b.tutorial_url) + '" placeholder="https://t.me/...">';
-    html += '<label>Redirect Link (after unlock)</label><input name="redirect_link" value="' + esc(b.redirect_link) + '" required placeholder="https://t.me/YourBot">';
-    html += '<div class="row2"><div><label>Price (coins to unlock)</label><input name="price_coins" type="number" min="0" value="' + b.price_coins + '"></div>';
-    html += '<div><label>Category</label><input name="category" value="' + esc(b.category) + '"></div></div>';
-    html += '<label class="checkline"><input name="is_active_cb" type="checkbox" ' + (b.is_active ? 'checked' : '') + '>Visible in Store</label>';
-    html += '<div class="actions-row"><button type="submit" class="btn-primary">Save</button><button type="button" class="btn-ghost" id="cancelFormBtn">Cancel</button></div>';
+
+    html += '<div class="section-divider">Basic Information</div>';
+    html += '<label>Product Name</label>';
+    html += '<input name="title" value="' + esc(b.title) + '" required placeholder="e.g. Telegram Auto Reply Script">';
+
+    html += '<label>Description</label>';
+    html += '<textarea name="description" placeholder="Describe your product...">' + esc(b.description) + '</textarea>';
+
+    html += '<div class="row2">';
+    html += '<div><label>Product Type</label><select name="product_type">';
+    html += '<option value="bot_code" ' + (b.product_type === 'bot_code' ? 'selected' : '') + '>🤖 Bot Code</option>';
+    html += '<option value="script" ' + (b.product_type === 'script' ? 'selected' : '') + '>📜 Script</option>';
+    html += '</select></div>';
+    html += '<div><label>Category</label><input name="category" value="' + esc(b.category) + '" placeholder="Automation"></div>';
+    html += '</div>';
+
+    html += '<label>Thumbnail Image URL</label>';
+    html += '<input name="thumbnail_url" value="' + esc(b.thumbnail_url) + '" placeholder="https://...">';
+
+    html += '<label>Tutorial URL <span style="font-weight:500;">(optional)</span></label>';
+    html += '<input name="tutorial_url" value="' + esc(b.tutorial_url) + '" placeholder="https://...">';
+
+    html += '<div class="section-divider">Delivery</div>';
+    html += '<label>After Unlock</label>';
+    html += '<div class="delivery-choice">';
+    html += '<label class="delivery-option"><input type="radio" name="delivery_type" value="redirect" ' + (b.delivery_type !== 'file' ? 'checked' : '') + '>';
+    html += '<div><b>🔗 Redirect Link</b><small>Open a website, bot, channel or download page</small></div></label>';
+    html += '<label class="delivery-option"><input type="radio" name="delivery_type" value="file" ' + (b.delivery_type === 'file' ? 'checked' : '') + '>';
+    html += '<div><b>📁 Direct Telegram File</b><small>Send the file directly to the user chat</small></div></label>';
+    html += '</div>';
+
+    html += '<div id="redirectFields" style="' + (b.delivery_type === 'file' ? 'display:none;' : '') + '">';
+    html += '<label>Redirect Link</label>';
+    html += '<input name="redirect_link" value="' + esc(b.redirect_link) + '" placeholder="https://t.me/YourBot or https://example.com">';
+    html += '</div>';
+
+    html += '<div id="fileFields" style="' + (b.delivery_type === 'file' ? '' : 'display:none;') + '">';
+    html += '<label>Telegram File ID</label>';
+    html += '<input name="file_id" value="' + esc(b.file_id) + '" placeholder="BAACAgQAAx...">';
+    html += '<label>Telegram File Type</label>';
+    html += '<select name="file_kind">';
+    html += '<option value="document" ' + (b.file_kind === 'document' ? 'selected' : '') + '>📄 Document / ZIP / Code</option>';
+    html += '<option value="video" ' + (b.file_kind === 'video' ? 'selected' : '') + '>🎬 Video</option>';
+    html += '<option value="audio" ' + (b.file_kind === 'audio' ? 'selected' : '') + '>🎵 Audio</option>';
+    html += '<option value="photo" ' + (b.file_kind === 'photo' ? 'selected' : '') + '>🖼️ Photo</option>';
+    html += '<option value="animation" ' + (b.file_kind === 'animation' ? 'selected' : '') + '>🎞️ Animation / GIF</option>';
+    html += '</select>';
+    html += '<div class="file-hint">The file must already exist in Telegram and the file_id must belong to this bot.</div>';
+    html += '</div>';
+
+    html += '<div class="section-divider">Pricing</div>';
+    html += '<div class="row2">';
+    html += '<div><label>Price</label><input name="price_coins" type="number" min="0" value="' + Number(b.price_coins || 0) + '"></div>';
+    html += '<div><label>Status</label><label class="switch-line"><input name="is_active_cb" type="checkbox" ' + (b.is_active ? 'checked' : '') + '><span>Visible in Store</span></label></div>';
+    html += '</div>';
+
+    html += '<div class="actions-row"><button type="submit" class="btn-primary">Save Product</button><button type="button" class="btn-ghost" id="cancelFormBtn">Cancel</button></div>';
     html += '</form></div>';
     el.innerHTML = html;
 
-    document.getElementById('cancelFormBtn').onclick = renderBotsTab;
-    document.getElementById('botForm').onsubmit = function(e){
-      e.preventDefault();
-      var f = e.target;
-      var payload = {
-        title: f.title.value.trim(),
-        description: f.description.value,
-        thumbnail_url: f.thumbnail_url.value.trim(),
-        tutorial_url: f.tutorial_url.value.trim(),
-        redirect_link: f.redirect_link.value.trim(),
-        price_coins: Number(f.price_coins.value) || 0,
-        category: f.category.value.trim() || 'New',
-        is_active: f.is_active_cb.checked
+    var form = document.getElementById('botForm');
+    var redirectFields = document.getElementById('redirectFields');
+    var fileFields = document.getElementById('fileFields');
+
+    form.querySelectorAll('input[name="delivery_type"]').forEach(function(radio){
+      radio.onchange = function(){
+        var file = this.value === 'file';
+        redirectFields.style.display = file ? 'none' : '';
+        fileFields.style.display = file ? '' : 'none';
       };
+    });
+
+    document.getElementById('cancelFormBtn').onclick = renderBotsTab;
+
+    form.onsubmit = function(e){
+      e.preventDefault();
+      var delivery = form.querySelector('input[name="delivery_type"]:checked').value;
+
+      var payload = {
+        title: form.title.value.trim(),
+        description: form.description.value,
+        thumbnail_url: form.thumbnail_url.value.trim(),
+        tutorial_url: form.tutorial_url.value.trim(),
+        product_type: form.product_type.value,
+        category: form.category.value.trim() || 'New',
+        delivery_type: delivery,
+        redirect_link: delivery === 'redirect' ? form.redirect_link.value.trim() : '',
+        file_id: delivery === 'file' ? form.file_id.value.trim() : '',
+        file_kind: delivery === 'file' ? form.file_kind.value : 'document',
+        price_coins: Number(form.price_coins.value) || 0,
+        is_active: form.is_active_cb.checked
+      };
+
+      if (delivery === 'redirect' && !payload.redirect_link){ toast('Enter a redirect link'); return; }
+      if (delivery === 'file' && !payload.file_id){ toast('Enter Telegram File ID'); return; }
+
       var req = bot ? api('/api/admin/bots/' + bot.id, { method:'PUT', body: JSON.stringify(payload) })
                     : api('/api/admin/bots', { method:'POST', body: JSON.stringify(payload) });
-      req.then(function(){ toast('Saved'); loadAll(); });
+
+      req.then(function(res){
+        if (res.error){ toast(res.error); return; }
+        toast('Product saved');
+        loadAll();
+      });
     };
   }
 
