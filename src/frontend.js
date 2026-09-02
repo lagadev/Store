@@ -65,6 +65,9 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
 .store-card .body{padding:13px 15px 15px;}
 .store-card .t{font-weight:800;font-size:14.5px;margin-bottom:3px;}
 .store-card .cat{font-size:11px;color:var(--sub);margin-bottom:12px;font-weight:600;}
+.store-filter{display:flex;gap:8px;padding:0 18px;margin-bottom:4px;}
+.filter-btn{flex:1;border:none;background:#fff;color:var(--sub);padding:12px 10px;border-radius:16px;font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:var(--shadow-sm);}
+.filter-btn.active{background:var(--purple);color:#fff;box-shadow:0 8px 18px rgba(108,92,231,.28);}
 .btn-block{width:100%;background:var(--purple);color:#fff;border:none;padding:12px;border-radius:14px;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:7px;}
 
 /* ---------- bottom nav ---------- */
@@ -199,7 +202,7 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
   var state = {
     user:null, isAdmin:false, bots:[],
     settings:{ coins_per_ad:50, daily_ad_limit:10, coins_per_refer:20, min_ad_seconds:7, bot_username:'', app_short_name:'store', refer_share_text:'', contact_support_url:'', tutorial_video_url:'' },
-    activeTab:'home', currentBot:null
+    activeTab:'home', currentBot:null, storeFilter:'bot_code'
   };
 
   function api(path, opts){
@@ -277,17 +280,35 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
     var box = document.getElementById('tab-store');
     var html = '';
     html += '<div class="section-title" style="margin-top:24px;">Latest Bots</div>';
+    html += '<div class="store-filter">';
+    html += '  <button class="filter-btn ' + (state.storeFilter==='bot_code'?'active':'') + '" data-filter="bot_code">🤖 Bot Code</button>';
+    html += '  <button class="filter-btn ' + (state.storeFilter==='script'?'active':'') + '" data-filter="script">📜 Script</button>';
+    html += '</div>';
     html += '<div class="store-grid" id="storeGrid"></div>';
     box.innerHTML = html;
+
+    box.querySelectorAll('[data-filter]').forEach(function(btn){
+      btn.onclick = function(){
+        state.storeFilter = btn.getAttribute('data-filter');
+        box.querySelectorAll('[data-filter]').forEach(function(b){
+          b.classList.toggle('active', b.getAttribute('data-filter')===state.storeFilter);
+        });
+        renderStoreGrid();
+      };
+    });
+
     renderStoreGrid();
   }
 
   function renderStoreGrid(){
     var wrap = document.getElementById('storeGrid');
     if (!wrap) return;
-    if (!state.bots.length){ wrap.innerHTML = '<div class="empty">No bots available right now.</div>'; return; }
+    var filtered = state.bots.filter(function(b){
+      return (b.product_type || 'bot_code') === state.storeFilter;
+    });
+    if (!filtered.length){ wrap.innerHTML = '<div class="empty">No products in this category right now.</div>'; return; }
     var html = '';
-    state.bots.forEach(function(b){
+    filtered.forEach(function(b){
       html += '<div class="store-card">';
       html += '  <div class="thumb-wrap"><img class="thumb" src="' + esc(b.thumbnail_url||'') + '">';
       html += '    <div class="price-tag"><span class="dot-coin">$</span>' + b.price_coins + '</div>';
