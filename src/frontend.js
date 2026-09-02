@@ -336,7 +336,11 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
       html += '<button class="btn-secondary" id="tutorialBtn">' + ICONS.video + ' Watch Tutorial</button>';
     }
     if (unlocked){
-      html += '<button class="btn-success" id="getBotBtn">' + ICONS.check + ' Get Bot</button>';
+      if (bot.delivery_type === 'file'){
+        html += '<button class="btn-success" id="getBotBtn">' + ICONS.check + ' Get File</button>';
+      } else {
+        html += '<button class="btn-success" id="getBotBtn">' + ICONS.check + ' Open Product</button>';
+      }
     } else if (canAfford){
       html += '<button class="btn-primary" id="unlockBtn">' + ICONS.coin.replace('class="ic"','class="ic" style="width:16px;height:16px;"') + ' Unlock for ' + bot.price_coins + ' coins</button>';
     } else {
@@ -355,7 +359,23 @@ svg.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;strok
 
     var getBtn = document.getElementById('getBotBtn');
     if (getBtn) getBtn.onclick = function(){
-      if (tg && tg.openLink) tg.openLink(bot.redirect_link); else window.open(bot.redirect_link, '_blank');
+      if (bot.delivery_type === 'file'){
+        getBtn.disabled = true;
+        getBtn.textContent = 'Sending…';
+        api('/api/bots/' + bot.id + '/deliver', { method:'POST' }).then(function(res){
+          if (res.error){
+            toast(res.error === 'file_delivery_failed' ? 'File delivery failed' : 'Something went wrong');
+            getBtn.disabled = false;
+            getBtn.textContent = ICONS.check + ' Get File';
+            renderBotDetail();
+            return;
+          }
+          toast('File sent to your Telegram chat! 📁');
+          closeSheet();
+        });
+      } else {
+        if (tg && tg.openLink) tg.openLink(bot.redirect_link); else window.open(bot.redirect_link, '_blank');
+      }
     };
 
     var earnMoreBtn = document.getElementById('earnMoreBtn');
